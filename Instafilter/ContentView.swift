@@ -9,6 +9,7 @@ import SwiftUI
 import PhotosUI
 import CoreImage
 import CoreImage.CIFilterBuiltins
+import StoreKit
 
 struct ContentView: View {
     
@@ -18,6 +19,9 @@ struct ContentView: View {
     @State private var currentFilter: CIFilter = CIFilter.sepiaTone()
     let context = CIContext()
     @State private var showingFilters = false
+    @AppStorage("filterCount") var filterCount = 0
+    @Environment(\.requestReview) var requestReview
+    
 
     var body: some View {
         NavigationView {
@@ -34,21 +38,25 @@ struct ContentView: View {
                 }
                 .onChange(of: selectedItem, loadImage)
                 Spacer()
-                
+               
                 HStack {
                     Text("Intensity")
                     Slider(value: $filterIntensity)
                         .onChange(of: filterIntensity, applyProcessing)
                 }
                 .padding(.vertical)
+                .disabled(processedImage == nil)
                 
                 HStack {
                     Button("Change filter", action: changeFilter)
                     
                     Spacer()
                     
-                    //share
+                    if let processedImage {
+                        ShareLink(item: processedImage, preview: SharePreview("Instafilter image", image: processedImage))
+                    }
                 }
+                .disabled(processedImage == nil)
             }
         }
         .padding([.horizontal, .bottom])
@@ -94,9 +102,14 @@ struct ContentView: View {
         showingFilters = true
     }
     
-    func setFilter(_ filter: CIFilter) {
+    @MainActor func setFilter(_ filter: CIFilter) {
         currentFilter = filter
         loadImage()
+        filterCount += 1
+        
+        if filterCount > 20 {
+            requestReview()
+        }
     }
 }
 
